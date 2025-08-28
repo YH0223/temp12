@@ -20,12 +20,11 @@ import {
     ChevronLeft,
     ChevronRight,
 } from "lucide-react"
+import LoginPage from "./login-page"
+import SignupPage from "./signup-page"
 
-import * as cornerstone from "cornerstone-core";
-import * as cornerstoneTools from "cornerstone-tools";
-import * as cornerstoneWADOImageLoader from "cornerstone-wado-image-loader";
-
-
+// cornerstone을 전역 변수로 선언 (동적 import로 초기화)
+let cornerstone: any = null;
 
 interface Patient {
     id: string
@@ -35,7 +34,7 @@ interface Patient {
     studyDate: string
     modality: string
     studyDescription: string
-    images: string[] // 환자별 여러 이미지 경로 추가
+    images: string[] // DICOM 이미지 경로
 }
 
 const mockPatients: Patient[] = [
@@ -48,12 +47,12 @@ const mockPatients: Patient[] = [
         modality: "CT",
         studyDescription: "Chest CT",
         images: [
-            "/medical-ct-scan-chest-image-grayscale.png",
-            "/medical-ct-scan-chest-image-grayscale.png",
-            "/medical-ct-scan-chest-image-grayscale.png",
-            "/medical-ct-scan-chest-image-grayscale.png",
-            "/medical-ct-scan-chest-image-grayscale.png",
-        ], // 여러 이미지 추가
+            "wadouri:/dicom/chest-ct-001.dcm",
+            "wadouri:/dicom/chest-ct-002.dcm",
+            "wadouri:/dicom/chest-ct-003.dcm",
+            "wadouri:/dicom/chest-ct-004.dcm",
+            "wadouri:/dicom/chest-ct-005.dcm",
+        ],
     },
     {
         id: "P002",
@@ -63,7 +62,11 @@ const mockPatients: Patient[] = [
         studyDate: "2024-01-14",
         modality: "MRI",
         studyDescription: "Brain MRI",
-        images: ["/medical-ct-scan-chest-image-grayscale.png"],
+        images: [
+            "wadouri:/dicom/brain-mri-001.dcm",
+            "wadouri:/dicom/brain-mri-002.dcm",
+            "wadouri:/dicom/brain-mri-003.dcm",
+        ],
     },
     {
         id: "P003",
@@ -74,20 +77,19 @@ const mockPatients: Patient[] = [
         modality: "X-Ray",
         studyDescription: "Chest X-Ray",
         images: [
-            "/medical-ct-scan-chest-image-grayscale.png",
-            "/medical-ct-scan-chest-image-grayscale.png",
-            "/medical-ct-scan-chest-image-grayscale.png",
+            "wadouri:/dicom/chest-xray-001.dcm",
+            "wadouri:/dicom/chest-xray-002.dcm",
         ],
     },
 ]
 
-type ViewMode = "main" | "search" | "viewer"
+type ViewMode = "login" | "signup" | "main" | "search" | "viewer"
 
 export default function MedicalViewer() {
-    const [viewMode, setViewMode] = useState<ViewMode>("main")
+    const [viewMode, setViewMode] = useState<ViewMode>("login") // 로그인부터 시작
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
-    const [selectedImageIndex, setSelectedImageIndex] = useState(0) // 선택된 이미지 인덱스 추가
-    const [thumbnailScrollIndex, setThumbnailScrollIndex] = useState(0) // 썸네일 스크롤 인덱스 추가
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+    const [thumbnailScrollIndex, setThumbnailScrollIndex] = useState(0)
     const [searchTerm, setSearchTerm] = useState("")
     const [zoomLevel, setZoomLevel] = useState(100)
     const [brightness, setBrightness] = useState(100)
@@ -97,39 +99,98 @@ export default function MedicalViewer() {
 
     const viewerRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        let cornerstone: typeof import("cornerstone-core");
-        let cornerstoneTools: typeof import("cornerstone-tools");
-        let cornerstoneWADOImageLoader: typeof import("cornerstone-wado-image-loader");
+    // 로그인 성공 시 메인 화면으로 이동
+    const handleLoginSuccess = () => {
+        setViewMode("main")
+    }
 
+    // 회원가입 페이지로 이동
+    const handleShowSignup = () => {
+        setViewMode("signup")
+    }
+
+    // 회원가입 성공 시 로그인 페이지로 이동
+    const handleSignupSuccess = () => {
+        setViewMode("login")
+    }
+
+    // 로그인 페이지로 돌아가기
+    const handleBackToLogin = () => {
+        setViewMode("login")
+    }
+
+    // 로그아웃 기능
+    const handleLogout = () => {
+        setViewMode("login")
+        setSelectedPatient(null)
+        setSearchTerm("")
+    }
+
+    useEffect(() => {
         async function initCornerstone() {
-            cornerstone = await import("cornerstone-core");
-            cornerstoneTools = await import("cornerstone-tools");
-            cornerstoneWADOImageLoader = await import("cornerstone-wado-image-loader");
+            // cornerstone이 아직 로드되지 않았다면 동적으로 import
+            if (!cornerstone) {
+                cornerstone = await import("cornerstone-core");
+            }
+            const cornerstoneTools = await import("cornerstone-tools");
+            const cornerstoneWADOImageLoader = await import("cornerstone-wado-image-loader");
 
             if (!viewerRef.current) return;
             const element = viewerRef.current;
 
+            // cornerstone 초기화
             cornerstone.enable(element);
+
+            // WADO 이미지 로더 설정
+            cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+            cornerstoneWADOImageLoader.external.dicomParser = await import("dicom-parser");
+
+            // WADO URI 로더 등록
+            cornerstone.registerImageLoader('wadouri', cornerstoneWADOImageLoader.wadouri.loadImage);
+
+            // WADO Web Services 로더 등록
+            cornerstone.registerImageLoader('wadors', cornerstoneWADOImageLoader.wadors.loadImage);
+
+            // DICOM P10 로더 등록
+            cornerstone.registerImageLoader('dicomfile', cornerstoneWADOImageLoader.wadouri.loadImage);
 
             const imageId = selectedPatient?.images[selectedImageIndex];
             if (!imageId) return;
 
-            cornerstone.loadAndCacheImage(imageId).then((image) => {
+            try {
+                const image = await cornerstone.loadAndCacheImage(imageId);
                 cornerstone.displayImage(element, image);
+
+                // 도구 초기화
+                cornerstoneTools.init();
                 cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
                 cornerstoneTools.addTool(cornerstoneTools.PanTool);
+                cornerstoneTools.addTool(cornerstoneTools.WindowLevelTool);
+                cornerstoneTools.addTool(cornerstoneTools.RotateTool);
+                cornerstoneTools.addTool(cornerstoneTools.LengthTool);
+
+                // 도구 활성화
                 cornerstoneTools.setToolActive("Zoom", { mouseButtonMask: 1 });
                 cornerstoneTools.setToolActive("Pan", { mouseButtonMask: 2 });
-            });
+                cornerstoneTools.setToolActive("WindowLevel", { mouseButtonMask: 4 });
+                cornerstoneTools.setToolActive("Rotate", { mouseButtonMask: 8 });
+
+            } catch (error) {
+                console.error('DICOM 이미지 로딩 오류:', error);
+            }
         }
 
-        initCornerstone();
+        if (viewMode === "viewer" && selectedPatient) {
+            initCornerstone();
+        }
     }, [viewMode, selectedPatient, selectedImageIndex]);
 
-    const rotateLeft = () => {
+    const rotateLeft = async () => {
         setRotation((prev) => prev - 90);
         if (viewerRef.current) {
+            if (!cornerstone) {
+                cornerstone = await import("cornerstone-core");
+            }
             const viewport = cornerstone.getViewport(viewerRef.current);
             if (viewport) {
                 viewport.rotation -= 90;
@@ -138,12 +199,15 @@ export default function MedicalViewer() {
         }
     }
 
-    const rotateRight = () => {
+    const rotateRight = async () => {
         setRotation((prev) => prev + 90)
         if (viewerRef.current) {
+            if (!cornerstone) {
+                cornerstone = await import("cornerstone-core");
+            }
             const viewport = cornerstone.getViewport(viewerRef.current);
             if (viewport) {
-                viewport.rotation -= 90;
+                viewport.rotation += 90;
                 cornerstone.setViewport(viewerRef.current, viewport);
             }
         }
@@ -180,6 +244,16 @@ export default function MedicalViewer() {
         setSelectedImageIndex(index)
     }
 
+    // 로그인 페이지 렌더링
+    if (viewMode === "login") {
+        return <LoginPage onLoginSuccess={handleLoginSuccess} onShowSignup={handleShowSignup} />
+    }
+
+    // 회원가입 페이지 렌더링
+    if (viewMode === "signup") {
+        return <SignupPage onSignupSuccess={handleSignupSuccess} onBackToLogin={handleBackToLogin} />
+    }
+
     if (viewMode === "main") {
         return (
             <div className="h-screen bg-gray-800 flex flex-col">
@@ -204,7 +278,12 @@ export default function MedicalViewer() {
                         <button className="hover:text-white">통계</button>
                         <button className="hover:text-white">설정</button>
                         <button className="hover:text-white">도움말</button>
-                        <button className="hover:text-white">종료</button>
+                        <button
+                            onClick={handleLogout}
+                            className="hover:text-white text-red-400 hover:text-red-300"
+                        >
+                            로그아웃
+                        </button>
                     </div>
                 </div>
 
@@ -287,7 +366,12 @@ export default function MedicalViewer() {
                         <button className="hover:text-white">통계</button>
                         <button className="hover:text-white">설정</button>
                         <button className="hover:text-white">도움말</button>
-                        <button className="hover:text-white">종료</button>
+                        <button
+                            onClick={handleLogout}
+                            className="hover:text-white text-red-400 hover:text-red-300"
+                        >
+                            로그아웃
+                        </button>
                     </div>
                 </div>
 
@@ -394,7 +478,12 @@ export default function MedicalViewer() {
                         <button className="hover:text-white">통계</button>
                         <button className="hover:text-white">설정</button>
                         <button className="hover:text-white">도움말</button>
-                        <button className="hover:text-white">종료</button>
+                        <button
+                            onClick={handleLogout}
+                            className="hover:text-white text-red-400 hover:text-red-300"
+                        >
+                            로그아웃
+                        </button>
                     </div>
                 </div>
 
@@ -425,11 +514,9 @@ export default function MedicalViewer() {
                                         }`}
                                         onClick={() => handleThumbnailClick(index)}
                                     >
-                                        <img
-                                            src={imagePath || "/placeholder.svg"}
-                                            alt={`썸네일 ${index + 1}`}
-                                            className="w-full h-full object-cover rounded"
-                                        />
+                                        <div className="w-full h-full bg-gray-600 rounded flex items-center justify-center text-xs text-gray-400">
+                                            {index + 1}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
