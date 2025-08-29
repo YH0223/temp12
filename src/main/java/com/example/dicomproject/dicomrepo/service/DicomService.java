@@ -9,9 +9,12 @@ import com.example.dicomproject.dicomrepo.repository.SeriesRepository;
 import com.example.dicomproject.dicomrepo.repository.StudyRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -23,36 +26,51 @@ public class DicomService {
     private final SeriesRepository seriesRepo;
     private final ImageRepository imageRepo;
 
-    public List<StudySummaryDto> searchStudies(String pid, String from, String to, String modality) {
-        List<Study> studies = (pid != null && from != null && to != null)
-                ? studyRepo.findByPatient_PidAndStudyDateBetween(pid, from, to)
-                : (pid != null ? studyRepo.findByPatient_Pid(pid) : studyRepo.findAll());
+    private final StudyRepository repo;
 
-        return studies.stream()
-                .filter(s -> modality == null || modality.equalsIgnoreCase(s.getModality()))
-                .map(this::toStudySummary)
-                .toList();
+    public Page<StudySummaryDto> searchStudies(StudySearchCondition c, Pageable pageable) {
+        List<String> modalities = parseModalities(emptyToNull(c.modality()));
+        Page<StudyProjection> page = repo.search(
+                emptyToNull(c.q()), // ↓ 필요 시 병합 함수
+                emptyToNull(c.accession()),
+                emptyToNull(c.studyDesc()),
+                modalities,
+                emptyToNull(c.bodyPart()),
+                emptyToNull(c.fromDate()),
+                emptyToNull(c.toDate()),
+                pageable
+        );
+        return page.map(p -> new StudySummaryDto(
+                p.getStudyKey(),
+                p.getStudyUid(),
+                p.getStudyDate(),
+                p.getStudyTime(),
+                p.getStudyDesc(),
+                p.getModality(),
+                p.getBodyPart(),
+                p.getAccessionNum(),
+                p.getPid(),
+                p.getPname()
+        ));
     }
 
-    public StudyDetailDto getStudy(String studyUid) {
-        var study = studyRepo.findByStudyInstanceUid(studyUid).orElseThrow();
-        var series = seriesRepo.findByStudy_StudyInstanceUid(studyUid)
-                .stream().map(this::toSeriesSummary).toList();
-        return new StudyDetailDto(
-                study.getStudyKey(), study.getStudyInstanceUid(),
-                study.getPatient().getPid(), study.getPatientName(),
-                study.getStudyDate(), study.getStudyTime(),
-                study.getModality(), study.getBodyPart(),
-                study.getAccessionNumber(),
-                study.getSeriesCount(), study.getImageCount(),
-                series
-        );
+    private String emptyToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s;
+    }
+
+    private static List<String> parseModalities(String csv) {
+        if (csv == null || csv.isBlank()) return null; // 빈은 null
+        List<String> list = Arrays.stream(csv.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        return list.isEmpty() ? null : list;
     }
 
     public List<SeriesSummaryDto> listSeries(String studyUid) {
-        return seriesRepo.findByStudy_StudyInstanceUid(studyUid).stream()
-                .map(this::toSeriesSummary)
-                .toList();
+        long key = Long.parseLong(studyUid);
+        return seriesRepo.findByStudyKey(key)     // DB에서 Series 엔티티 목록 조회
+                .stream()                         // 엔티티 리스트 → 스트림
+                .map(this::toSeriesSummary)       // 엔티티 → DTO 매핑
+                .toList();                        // 다시 리스트로 변환
     }
 
     public List<ImageSummaryDto> listInstances(String seriesUid) {
@@ -69,7 +87,7 @@ public class DicomService {
                 i.getStudyInstanceUid(), i.getSeriesInstanceUid(), i.getSopInstanceUid(),
                 tidyPath(i.getPath()), i.getFname(),
                 // modality는 Series/Study에 있으므로 참고용
-                null, i.getStorageId()
+                null
         );
     }
 
@@ -81,22 +99,15 @@ public class DicomService {
         return r;
     }
 
-    private StudySummaryDto toStudySummary(Study s) {
-        return new StudySummaryDto(
-                s.getStudyKey(), s.getStudyInstanceUid(),
-                s.getPatient().getPid(), s.getPatientName(),
-                s.getAccessionNumber(),
-                s.getStudyDate(), s.getModality(),
-                s.getSeriesCount(), s.getImageCount()
-        );
-    }
 
-    private SeriesSummaryDto toSeriesSummary(Series se) {
+    private SeriesSummaryDto toSeriesSummary(Series s) {
         return new SeriesSummaryDto(
-                se.getStudyKey(), se.getSeriesKey(),
-                se.getSeriesInstanceUid(),
-                se.getModality(), se.getBodyPart(),
-                se.getImageCount()
+                s.getStudy().getStudyKey(),   // Long studyKey
+                s.getSeriesKey(),             // Long seriesKey
+                s.getSeriesInstanceUid(),     // String
+                s.getModality(),              // String
+                s.getBodyPart(),              // String
+                s.getImageCount()             // Integer
         );
     }
 }

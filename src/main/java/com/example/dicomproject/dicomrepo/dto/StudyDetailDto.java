@@ -16,3 +16,4 @@ public record StudyDetailDto(
         Integer imageCount,
         List<SeriesSummaryDto> series
 ) {}
+

@@ -1,6 +1,6 @@
 "use client"
 
-import MedicalViewer from "@/components/medical-viewer"
+import MedicalViewer from "@/components/MedicalViewerApp"
 
 export default function Home() {
     return (

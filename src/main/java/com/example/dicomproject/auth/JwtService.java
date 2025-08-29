@@ -1,4 +1,4 @@
-package com.example.dicomproject.Auth;
+package com.example.dicomproject.auth;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

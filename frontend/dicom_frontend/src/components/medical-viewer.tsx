@@ -134,7 +134,7 @@ export default function MedicalViewer() {
             }
             const cornerstoneTools = await import("cornerstone-tools");
             const cornerstoneWADOImageLoader = await import("cornerstone-wado-image-loader");
-
+            
             if (!viewerRef.current) return;
             const element = viewerRef.current;
 
@@ -144,13 +144,13 @@ export default function MedicalViewer() {
             // WADO 이미지 로더 설정
             cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
             cornerstoneWADOImageLoader.external.dicomParser = await import("dicom-parser");
-
+            
             // WADO URI 로더 등록
             cornerstone.registerImageLoader('wadouri', cornerstoneWADOImageLoader.wadouri.loadImage);
-
+            
             // WADO Web Services 로더 등록
             cornerstone.registerImageLoader('wadors', cornerstoneWADOImageLoader.wadors.loadImage);
-
+            
             // DICOM P10 로더 등록
             cornerstone.registerImageLoader('dicomfile', cornerstoneWADOImageLoader.wadouri.loadImage);
 
@@ -160,7 +160,7 @@ export default function MedicalViewer() {
             try {
                 const image = await cornerstone.loadAndCacheImage(imageId);
                 cornerstone.displayImage(element, image);
-
+                
                 // 도구 초기화
                 cornerstoneTools.init();
                 cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
@@ -168,13 +168,13 @@ export default function MedicalViewer() {
                 cornerstoneTools.addTool(cornerstoneTools.WindowLevelTool);
                 cornerstoneTools.addTool(cornerstoneTools.RotateTool);
                 cornerstoneTools.addTool(cornerstoneTools.LengthTool);
-
+                
                 // 도구 활성화
                 cornerstoneTools.setToolActive("Zoom", { mouseButtonMask: 1 });
                 cornerstoneTools.setToolActive("Pan", { mouseButtonMask: 2 });
                 cornerstoneTools.setToolActive("WindowLevel", { mouseButtonMask: 4 });
                 cornerstoneTools.setToolActive("Rotate", { mouseButtonMask: 8 });
-
+                
             } catch (error) {
                 console.error('DICOM 이미지 로딩 오류:', error);
             }
@@ -278,7 +278,7 @@ export default function MedicalViewer() {
                         <button className="hover:text-white">통계</button>
                         <button className="hover:text-white">설정</button>
                         <button className="hover:text-white">도움말</button>
-                        <button
+                        <button 
                             onClick={handleLogout}
                             className="hover:text-white text-red-400 hover:text-red-300"
                         >
@@ -366,7 +366,7 @@ export default function MedicalViewer() {
                         <button className="hover:text-white">통계</button>
                         <button className="hover:text-white">설정</button>
                         <button className="hover:text-white">도움말</button>
-                        <button
+                        <button 
                             onClick={handleLogout}
                             className="hover:text-white text-red-400 hover:text-red-300"
                         >
@@ -478,7 +478,7 @@ export default function MedicalViewer() {
                         <button className="hover:text-white">통계</button>
                         <button className="hover:text-white">설정</button>
                         <button className="hover:text-white">도움말</button>
-                        <button
+                        <button 
                             onClick={handleLogout}
                             className="hover:text-white text-red-400 hover:text-red-300"
                         >

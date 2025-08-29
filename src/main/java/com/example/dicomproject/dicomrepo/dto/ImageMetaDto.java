@@ -10,6 +10,5 @@ public record ImageMetaDto(
         String sopInstanceUid,
         String path,   // 폴더
         String fname,  // 파일명
-        String modality,
-        Long storageId
+        String modality
 ) {}

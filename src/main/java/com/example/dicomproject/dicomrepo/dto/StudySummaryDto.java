@@ -1,13 +1,14 @@
 package com.example.dicomproject.dicomrepo.dto;
 
 public record StudySummaryDto(
-        Long studyKey,
-        String studyInstanceUid,
-        String pid,
-        String pname,
-        String accessionNumber,
+        long studyKey,
+        String studyUid,        // ← Projection과 동일한 이름/의미
         String studyDate,
+        String studyTime,
+        String studyDesc,
         String modality,
-        Integer seriesCount,
-        Integer imageCount
+        String bodyPart,
+        String accessionNum,
+        String pid,
+        String pname
 ) {}
