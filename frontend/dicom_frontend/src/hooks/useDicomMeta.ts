@@ -22,6 +22,7 @@ export interface DicomSeries {
 
 export interface DicomManifest {
     study: {
+        studyKey:number;
         patientName?: string;
         studyDescription?: string;
         studyDate?: string;
@@ -53,10 +54,10 @@ export function useDicomStudy(studyKey: number) {
             // 여기서는 series[].instances[].fileUrl 그대로 사용
             const normalized: DicomManifest = {
                 study: {
+                    studyKey:data.studyKey,
                     patientName: data.patientName ?? "Anonymous",
                     studyDescription: data.studyDescription ?? "",
                     studyDate: data.studyDate,
-                    patientName: data.patientName,
                     modality: data.modality, // 전체 스터디의 대표 모달리티가 있으면
                     studyInstanceUID: data.studyInstanceUid,
                 },

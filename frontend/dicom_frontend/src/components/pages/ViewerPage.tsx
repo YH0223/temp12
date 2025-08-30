@@ -281,10 +281,6 @@ export function ViewerPage({ studyKey }: ViewerPageProps) {
                             <div className="w-full h-full flex items-center justify-center">
                                 <div
                                     className="bg-gray-800 border border-gray-600 rounded"
-                                    style={{
-                                        transform: `scale(${viewerSettings.zoom})`,
-                                        filter: viewerSettings.invert ? "invert(1)" : "none",
-                                    }}
                                 >
                                     {/* Cornerstone 뷰포트 */}
                                     <CornerstoneViewport imageIds={[currentImageId]} />
@@ -293,18 +289,13 @@ export function ViewerPage({ studyKey }: ViewerPageProps) {
                                 {/* 오버레이 */}
                                 {viewerSettings.annotations && (
                                     <>
-                                        <div className="absolute top-4 left-4 text-white text-sm bg-black/50 rounded p-2">
-                                            <div>환자: {manifest.study.patientName}</div>
-                                            <div>Study: {manifest.study.studyDescription}</div>
-                                            <div>
-                                                Series: {selectedSeries?.seriesDescription ?? selectedSeries?.seriesInstanceUid}
-                                            </div>
-                                        </div>
-                                        <div className="absolute top-4 right-4 text-white text-sm bg-black/50 rounded p-2">
-                                            <div>
-                                                W/L: {viewerSettings.windowWidth}/{viewerSettings.windowCenter}
-                                            </div>
-                                            <div>Zoom: {(viewerSettings.zoom * 100).toFixed(0)}%</div>
+                                        <div className="w-full h-full">
+                                            {/* CSS transform 제거, 뷰포트 prop으로 전달 */}
+                                            <CornerstoneViewport
+                                                imageIds={[currentImageId]}
+                                                zoom={viewerSettings.zoom}      // 1.0 ~
+                                                invert={viewerSettings.invert}  // true/false
+                                            />
                                         </div>
                                     </>
                                 )}

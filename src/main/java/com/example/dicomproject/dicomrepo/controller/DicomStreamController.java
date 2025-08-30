@@ -145,7 +145,7 @@ public class DicomStreamController {
     // 유틸
     private static <T> T firstNonNull(T a, T b) { return a != null ? a : b; }
 
-    @GetMapping("/instances/{sopUid:.+}/file")
+    @GetMapping(value = "/instances/{sopUid:.+}/file", produces = "application/dicom")
     public ResponseEntity<byte[]> streamDicom(
             @PathVariable String sopUid,
             HttpServletRequest request

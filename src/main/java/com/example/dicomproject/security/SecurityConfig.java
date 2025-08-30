@@ -79,7 +79,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/dicom/instances/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/dicom/instances/**","/api/dicom/studies/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .anyRequest().authenticated()
